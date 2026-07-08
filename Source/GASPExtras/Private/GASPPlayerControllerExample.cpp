@@ -2,6 +2,7 @@
 #include "EnhancedInputSubsystems.h"
 #include "InputMappingContext.h"
 #include "GASPCharacterExample.h"
+#include "Engine/LocalPlayer.h"
 
 TSoftObjectPtr<UInputMappingContext> AGASPPlayerControllerExample::GetDefaultInputMapping()
 {
@@ -20,6 +21,12 @@ void AGASPPlayerControllerExample::OnPossess(APawn* InPawn)
 	PossessedPlayer = Cast<AGASPCharacterExample>(InPawn);
 
 	SetupInput();
+}
+
+void AGASPPlayerControllerExample::OnUnPossess()
+{
+	PossessedPlayer = nullptr;
+	Super::OnUnPossess();
 }
 
 void AGASPPlayerControllerExample::OnRep_Pawn()
@@ -47,8 +54,7 @@ void AGASPPlayerControllerExample::SetupInput() const
 		return;
 	}
 	// Get the Enhanced Input Local Player Subsystem from the Local Player related to our Player Controller.
-	if (UEnhancedInputLocalPlayerSubsystem* InputSystem =
-		ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(GetLocalPlayer()))
+	if (UEnhancedInputLocalPlayerSubsystem* InputSystem = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(GetLocalPlayer()))
 	{
 		// PawnClientRestart can run more than once in an Actor's lifetime, so start by clearing out any leftover
 		// mappings.

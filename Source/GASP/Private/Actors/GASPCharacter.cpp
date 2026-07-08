@@ -2,13 +2,18 @@
 #include "ChooserFunctionLibrary.h"
 #include "MotionWarpingComponent.h"
 #include "GameplayTagContainer.h"
+#include "TimerManager.h"
 #include "Components/GASPCharacterMovementComponent.h"
 #include "Components/GASPTraversalComponent.h"
+#include "Components/SkeletalMeshComponent.h"
+#include "Engine/NetConnection.h"
 #include "Net/UnrealNetwork.h"
 #include "Net/Core/PushModel/PushModel.h"
 #include "Utils/GASPLinkedAnimInstanceSet.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(GASPCharacter)
+
+FName AGASPCharacter::MotionWarpingComponentName = TEXT("MotionWarping");
 
 // Sets default values
 AGASPCharacter::AGASPCharacter(const FObjectInitializer& ObjectInitializer)
@@ -26,8 +31,9 @@ AGASPCharacter::AGASPCharacter(const FObjectInitializer& ObjectInitializer)
 		GetMesh()->SetRelativeRotation_Direct({0.f, -90.f, 0.f});
 		GetMesh()->SetRelativeLocation_Direct({0.f, 0.f, -90.f});
 	}
+	
 	MovementComponent = Cast<UGASPCharacterMovementComponent>(GetCharacterMovement());
-	MotionWarpingComponent = CreateDefaultSubobject<UMotionWarpingComponent>(TEXT("MotionWarping"));
+	MotionWarpingComponent = CreateDefaultSubobject<UMotionWarpingComponent>(MotionWarpingComponentName);
 	TraversalComponent = CreateDefaultSubobject<UGASPTraversalComponent>(TEXT("TraversalComponent"));
 }
 

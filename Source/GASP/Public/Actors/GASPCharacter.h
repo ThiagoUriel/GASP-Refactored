@@ -104,6 +104,9 @@ protected:
 	FVector2D GetMovementInputScaleValue(const FVector2D InVector) const;
 
 public:
+	
+	static FName MotionWarpingComponentName;
+	
 	void RefreshGait();
 
 	UFUNCTION(BlueprintCallable, Category="Traversal")

@@ -1,90 +1,103 @@
 {
-  "FileVersion": 3,
-  "Version": 2,
-  "VersionName": "1.12",
-  "FriendlyName": "Game Animation Sample Refactored",
-  "Description": "Reworked and improved С++ version of Game Animation Sample",
-  "Category": "Animation",
-  "CreatedBy": "anaylan",
-  "CreatedByURL": "https://github.com/Anaylan",
-  "DocsURL": "https://github.com/Anaylan/GASP-Refactored",
-  "MarketplaceURL": "https://www.fab.com/listings/880e319a-a59e-4ed2-b268-b32dac7fa016",
-  "SupportURL": "https://github.com/Anaylan/GASP-Refactored/discussions",
-  "CanContainContent": true,
-  "IsBetaVersion": false,
-  "EnabledByDefault": true,
-  "IsExperimentalVersion": false,
-  "Installed": false,
-  "Modules": [
-    {
-      "Name": "GASP",
-      "Type": "Runtime",
-      "LoadingPhase": "Default"
-    },
-    {
-      "Name": "GASPCamera",
-      "Type": "Runtime",
-      "LoadingPhase": "Default"
-    },
-    {
-      "Name": "GASPExtras",
-      "Type": "Runtime",
-      "LoadingPhase": "Default"
-    },
-    {
-      "Name": "GASPEditor",
-      "Type": "UncookedOnly",
-      "LoadingPhase": "PreDefault"
-    }
-  ],
-  "Plugins": [
-    {
-      "Name": "MotionTrajectory",
-      "Enabled": true
-    },
-    {
-      "Name": "PoseSearch",
-      "Enabled": true
-    },
-    {
-      "Name": "MotionWarping",
-      "Enabled": true
-    },
-    {
-      "Name": "AnimationWarping",
-      "Enabled": true
-    },
-    {
-      "Name": "Chooser",
-      "Enabled": true
-    },
-    {
-      "Name": "BlendStack",
-      "Enabled": true
-    },
-    {
-      "Name": "GameplayCameras",
-      "Enabled": true
-    },
-    {
-      "Name": "EnhancedInput",
-      "Enabled": true
-    },
-    {
-      "Name": "GameplayTagsEditor",
-      "Enabled": true
-    },
-    {
-      "Name": "Niagara",
-      "Enabled": true
-    },
-    {
-      "Name": "AnimationLocomotionLibrary",
-      "Enabled": true
-    },
-    {
-      "Name": "DeformerGraph",
-      "Enabled": true
-    }
-  ]
+	"FileVersion": 3,
+	"Version": 2,
+	"VersionName": "1.12",
+	"FriendlyName": "Game Animation Sample Refactored",
+	"Description": "Reworked and improved С++ version of Game Animation Sample",
+	"Category": "Animation",
+	"CreatedBy": "anaylan",
+	"CreatedByURL": "https://github.com/Anaylan",
+	"DocsURL": "https://github.com/Anaylan/GASP-Refactored",
+	"MarketplaceURL": "https://www.fab.com/listings/880e319a-a59e-4ed2-b268-b32dac7fa016",
+	"SupportURL": "https://github.com/Anaylan/GASP-Refactored/discussions",
+	"CanContainContent": true,
+	"IsBetaVersion": false,
+	"EnabledByDefault": true,
+	"IsExperimentalVersion": false,
+	"Installed": false,
+	"Modules": [
+		{
+			"Name": "GASP",
+			"Type": "Runtime",
+			"LoadingPhase": "Default"
+		},
+		{
+			"Name": "GASPCamera",
+			"Type": "Runtime",
+			"LoadingPhase": "Default"
+		},
+		{
+			"Name": "GASPExtras",
+			"Type": "Runtime",
+			"LoadingPhase": "Default"
+		},
+		{
+			"Name": "GASPEditor",
+			"Type": "UncookedOnly",
+			"LoadingPhase": "PreDefault"
+		},
+		{
+			"Name": "GASPAbilities",
+			"Type": "Runtime",
+			"LoadingPhase": "Default"
+		}
+	],
+	"Plugins": [
+		{
+			"Name": "MotionTrajectory",
+			"Enabled": true
+		},
+		{
+			"Name": "PoseSearch",
+			"Enabled": true
+		},
+		{
+			"Name": "MotionWarping",
+			"Enabled": true
+		},
+		{
+			"Name": "AnimationWarping",
+			"Enabled": true
+		},
+		{
+			"Name": "Chooser",
+			"Enabled": true
+		},
+		{
+			"Name": "BlendStack",
+			"Enabled": true
+		},
+		{
+			"Name": "GameplayCameras",
+			"Enabled": true
+		},
+		{
+			"Name": "EnhancedInput",
+			"Enabled": true
+		},
+		{
+			"Name": "GameplayTagsEditor",
+			"Enabled": true
+		},
+		{
+			"Name": "Niagara",
+			"Enabled": true
+		},
+		{
+			"Name": "AnimationLocomotionLibrary",
+			"Enabled": true
+		},
+		{
+			"Name": "DeformerGraph",
+			"Enabled": true
+		},
+        {
+            "Name": "ModularGameplay",
+            "Enabled": true
+        },
+        {
+            "Name": "GameplayAbilities",
+            "Enabled": true
+        } 
+	]
 }
