@@ -1,25 +1,24 @@
-// Copyright Epic Games, Inc. All Rights Reserved.
-
 using UnrealBuildTool;
 
 public class GASP : ModuleRules
 {
-	public GASP(ReadOnlyTargetRules Target) : base(Target)
+	public GASP(ReadOnlyTargetRules target) : base(target)
 	{
 		PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
 		IncludeOrderVersion = EngineIncludeOrderVersion.Latest;
 		CppCompileWarningSettings.NonInlinedGenCppWarningLevel = WarningLevel.Warning;
 
-		PublicDependencyModuleNames.AddRange(new string[]
+		PublicDependencyModuleNames.AddRange(new []
 		{
+			"AnimationWarpingRuntime",
 			"Core",
 			"CoreUObject",
 			"Engine",
 			"NetCore",
-			"GameplayTags", 
+			"GameplayTags"
 		});
 
-		PrivateDependencyModuleNames.AddRange(new string[]
+		PrivateDependencyModuleNames.AddRange(new []
 		{
 			"MotionTrajectory",
 			"PoseSearch",
@@ -33,9 +32,11 @@ public class GASP : ModuleRules
 		});
 
 		if (Target.Type == TargetRules.TargetType.Editor)
-			PrivateDependencyModuleNames.AddRange(new string[]
+		{
+			PrivateDependencyModuleNames.AddRange(new []
 			{
 				"GameplayDebugger",
 			});
+		}
 	}
 }

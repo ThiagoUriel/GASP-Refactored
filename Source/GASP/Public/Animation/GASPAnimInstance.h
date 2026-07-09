@@ -205,8 +205,11 @@ public:
 
 	UFUNCTION(BlueprintPure, Category = "BlendStack", meta = (BlueprintThreadSafe))
 	EPoseSearchInterruptMode GetMatchingInterruptMode() const;
+	
+	
 	UFUNCTION(BlueprintPure, Category = "BlendStack", meta = (BlueprintThreadSafe))
 	EOffsetRootBoneMode GetOffsetRootRotationMode() const;
+	
 	UFUNCTION(BlueprintPure, Category = "BlendStack", meta = (BlueprintThreadSafe))
 	EOffsetRootBoneMode GetOffsetRootTranslationMode() const;
 	UFUNCTION(BlueprintPure, Category = "BlendStack", meta = (BlueprintThreadSafe))

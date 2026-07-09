@@ -7,8 +7,12 @@
 #include "ChooserFunctionLibrary.h"
 #include "PoseSearch/PoseSearchLibrary.h"
 #include "AnimationWarpingLibrary.h"
+#include "TimerManager.h"
+#include "Animation/AnimSequence.h"
 #include "BlendStack/BlendStackAnimNodeLibrary.h"
 #include "BoneControllers/AnimNode_FootPlacement.h"
+#include "Components/SkeletalMeshComponent.h"
+#include "Engine/World.h"
 #include "Interfaces/GASPHeldObjectInterface.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(GASPAnimInstance)
@@ -51,17 +55,29 @@ EPoseSearchInterruptMode UGASPAnimInstance::GetMatchingInterruptMode() const
 
 EOffsetRootBoneMode UGASPAnimInstance::GetOffsetRootRotationMode() const
 {
+	// Slot that should explicitly release the accumulated offset.
 	if (IsSlotActive(AnimNames.AnimationSlotName))
 	{
 		return EOffsetRootBoneMode::Release;
 	}
+	
+	// Slots that should explicitly define their own mode.
+	for (const TPair<FName, EOffsetRootBoneMode>& Pair : AnimNames.SlotOffsetRootBoneModeMap)
+	{
+		if (IsSlotActive(Pair.Key))
+		{
+			return Pair.Value;
+		}
+	}
 
-	float YawDifference = CharacterInfo.ActorTransform.Rotator().Yaw - CharacterInfo.RootTransform.Rotator().Yaw;
-	YawDifference = FRotator::NormalizeAxis(YawDifference);
+	// Normal logic.
+	const float ActorYaw = CharacterInfo.ActorTransform.Rotator().Yaw;
+	const float RootYaw = CharacterInfo.RootTransform.Rotator().Yaw;
+	const float YawDifference = FRotator::NormalizeAxis(ActorYaw - RootYaw);
 
 	return !IsMoving() && RotationMode == RotationTags::Aim && FMath::Abs(YawDifference) >= 90.f
-		       ? EOffsetRootBoneMode::LockOffsetAndConsumeAnimation
-		       : EOffsetRootBoneMode::Accumulate;
+		? EOffsetRootBoneMode::LockOffsetAndConsumeAnimation
+		: EOffsetRootBoneMode::Accumulate;	
 }
 
 EOffsetRootBoneMode UGASPAnimInstance::GetOffsetRootTranslationMode() const

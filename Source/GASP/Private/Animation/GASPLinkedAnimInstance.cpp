@@ -1,6 +1,8 @@
 #include "Animation/GASPLinkedAnimInstance.h"
 #include "Actors/GASPCharacter.h"
 #include "Animation/GASPAnimInstance.h"
+#include "Components/SkeletalMeshComponent.h"
+#include "Engine/World.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(GASPLinkedAnimInstance)
 

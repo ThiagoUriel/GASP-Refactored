@@ -1,8 +1,11 @@
 #pragma once
 
+#include "AnimationWarpingTypes.h"
 #include "GameplayTags.h"
 #include "Utils/GASPMath.h"
 #include "TagTypes.h"
+#include "Animation/AnimMontage.h"
+#include "Animation/PoseSnapshot.h"
 #include "Curves/CurveFloat.h"
 #include "Curves/CurveVector.h"
 #include "StructTypes.generated.h"
@@ -131,8 +134,16 @@ struct GASP_API FAnimUtilityNames
 	FName MovingTraversalCurveName{TEXT("MovingTraversal")};
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	FName EnableMotionWarpingCurveName{TEXT("Enable_OrientationWarping")};
+	
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
-	FName AnimationSlotName{TEXT("DefaultSlot")};
+	FName AnimationSlotName { TEXT("DefaultSlot") };
+	
+	/** Map of slots that, when active, define their own offset root bone mode. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+	TMap<FName, EOffsetRootBoneMode> SlotOffsetRootBoneModeMap { 
+		{ TEXT("FullBody"), EOffsetRootBoneMode::Interpolate } 
+	};
+	
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	FName DisableAOCurveName{TEXT("Disable_AO")};
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)

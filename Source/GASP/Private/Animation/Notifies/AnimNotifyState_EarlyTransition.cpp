@@ -1,5 +1,6 @@
 ﻿#include "Animation/Notifies/AnimNotifyState_EarlyTransition.h"
 #include "Animation/GASPAnimInstance.h"
+#include "Components/SkeletalMeshComponent.h"
 #include "Types/EnumTypes.h"
 #include "Utils/GASPBlueprintLibrary.h"
 

@@ -1,5 +1,8 @@
 ﻿#include "Animation/Notifies/AnimNotifyState_MontageBlendOut.h"
 #include "Actors/GASPCharacter.h"
+#include "Animation/AnimInstance.h"
+#include "Animation/AnimMontage.h"
+#include "Components/SkeletalMeshComponent.h"
 #include "Kismet/KismetMathLibrary.h"
 #include "Types/EnumTypes.h"
 
