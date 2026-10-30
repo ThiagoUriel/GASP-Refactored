@@ -10,6 +10,10 @@
 #include "Components/GASPInteractionTargetComponent.h"
 #include "Components/SphereComponent.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "Data/FoundryInputSetupDataAsset.h"
+#include "Components/GASPTraversalComponent.h"
+#include "TimerManager.h"
+#include "Types/TagTypes.h"
 #include "Types/FoundryInteractionCollisions.h"
 
 const FName AGASPFoundryPawn::InteractionTargetComponentName = TEXT("InteractionTargetComponent");
@@ -39,20 +43,25 @@ void AGASPFoundryPawn::BeginPlay()
 	{
 		Performer->OnInteractionFinished.AddUniqueDynamic(this, &ThisClass::HandleInteractionFinished);
 	}
+	
 	RefreshInteractionScanning();
 }
 
 void AGASPFoundryPawn::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
+	StopInputJump();
+	
 	if (UFoundryInteractionComponent* Performer = GetInteractionComponent())
 	{
 		Performer->CancelInteraction();
 		Performer->OnInteractionFinished.RemoveDynamic(this, &ThisClass::HandleInteractionFinished);
 	}
+	
 	if (UGASPActionComponent* Actions = GetActionComponent())
 	{
 		Actions->CancelReservedAction();
 	}
+	
 	Super::EndPlay(EndPlayReason);
 }
 
@@ -64,6 +73,7 @@ void AGASPFoundryPawn::PossessedBy(AController* NewController)
 
 void AGASPFoundryPawn::UnPossessed()
 {
+	StopInputJump();
 	Super::UnPossessed();
 	RefreshInteractionScanning();
 }
@@ -79,17 +89,77 @@ FPoseSearchBlueprintResult AGASPFoundryPawn::GetInteractionResult_Implementation
 	return IsValid(Actions) ? Actions->GetActionResult() : FPoseSearchBlueprintResult();
 }
 
+bool AGASPFoundryPawn::TryTraversalJumpAction_Implementation(const FFoundryInputHandlerContext& Context)
+{
+	if (Context.Pawn != this || !Context.Value.Get<bool>() || !CanStartInputJump() || IsRagdolling())
+	{
+		return false;
+	}
+
+	// Retain the Pawn's movement-dependent trace policy and the component's execution path.
+	const FTraversalResult Result = TryTraversalAction();
+	return !Result.bTraversalCheckFailed && !Result.bMontageSelectionFailed;
+}
+
+TArray<UFoundryInputSetupDataAsset*> AGASPFoundryPawn::GetInputSetups_Implementation() const
+{
+	return InputSetups;
+}
+
 void AGASPFoundryPawn::HandleDeathStarted()
 {
+	StopInputJump();
 	if (UFoundryInteractionComponent* Performer = GetInteractionComponent())
 	{
 		Performer->CancelInteraction();
 	}
+	
 	if (UGASPActionComponent* Actions = GetActionComponent())
 	{
 		Actions->CancelReservedAction();
 	}
+	
 	Super::HandleDeathStarted();
+}
+
+bool AGASPFoundryPawn::CanStartInputJump() const
+{
+	return IsLocallyControlled() && !bMovementDisabledByDeath
+		&& (IsRagdolling() || (!IsDoingTraversal() && IsValid(GetMesh()) && !GetMesh()->IsPlayingRootMotion()));
+}
+
+void AGASPFoundryPawn::StartInputJump()
+{
+	if (!CanStartInputJump())
+	{
+		return;
+	}
+
+	if (IsRagdolling())
+	{
+		StopRagdolling();
+		return;
+	}
+
+	FGASPInputState* InputState = PlayerInputState.GetMutablePtr<FGASPInputState>();
+	if (!InputState)
+	{
+		return;
+	}
+	if (GetStanceMode() != StanceTags::Standing)
+	{
+		InputState->DesiredStance = StanceTags::Standing;
+		return;
+	}
+
+	Jump();
+	GetWorldTimerManager().SetTimer(InputJumpTimer, this, &ThisClass::StopInputJump, 0.1f, false);
+}
+
+void AGASPFoundryPawn::StopInputJump()
+{
+	GetWorldTimerManager().ClearTimer(InputJumpTimer);
+	StopJumping();
 }
 
 void AGASPFoundryPawn::RequestAction(const FName ActionType)
@@ -99,6 +169,7 @@ void AGASPFoundryPawn::RequestAction(const FName ActionType)
 		Server_RequestAction(ActionType);
 		return;
 	}
+	
 	FGameplayTag Event;
 	if (ActionType == TEXT("Shove"))
 	{
@@ -108,10 +179,12 @@ void AGASPFoundryPawn::RequestAction(const FName ActionType)
 	{
 		Event = GASP::Interaction::ExecuteTakedown;
 	}
+	
 	if (!Event.IsValid())
 	{
 		return;
 	}
+	
 	UAbilitySystemComponent* Abilities = GetAbilitySystemComponent();
 	if (IsValid(Abilities))
 	{
@@ -128,10 +201,12 @@ bool AGASPFoundryPawn::TrackInteractionAction(const FGASPActionHandle Handle)
 	const FGASPActionHandle Active = IsValid(Performer)
 		? FGASPActionHandle::FromExecution(Performer->GetActiveInteractionContext().ExecutionId)
 		: FGASPActionHandle();
+	
 	if (!Handle.IsValid() || Handle != Active)
 	{
 		return false;
 	}
+	
 	InteractionActionHandle = Handle;
 	return true;
 }
@@ -142,11 +217,13 @@ void AGASPFoundryPawn::RefreshInteractionScanning()
 	{
 		return;
 	}
+	
 	const bool bShouldScan = IsPlayerControlled() || bScanWithoutPlayer;
 	if (bShouldScan)
 	{
 		EnsureAbilitySystemComponent();
 	}
+	
 	const ECollisionEnabled::Type Collision = bShouldScan ? ECollisionEnabled::QueryOnly : ECollisionEnabled::NoCollision;
 	InteractionScan->SetCollisionEnabled(Collision);
 }

@@ -62,14 +62,6 @@ public:
 	virtual void CrouchAction(bool bPressed);
 
 	/**
-	 * Attempts traversal before jumping, or recovers from ragdoll.
-	 *
-	 * @param bPressed	Whether the input is pressed.
-	 */
-	UFUNCTION(BlueprintCallable, Category = "Input|Actions")
-	virtual void JumpAction(bool bPressed);
-
-	/**
 	 * Selects aiming rotation while aim input is held.
 	 *
 	 * @param bPressed	Whether the input is pressed.
@@ -92,22 +84,6 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Input|Actions")
 	virtual void StrafeAction(bool bPressed);
-
-	/**
-	 * Supplies local movement input in the sample movement plane.
-	 *
-	 * @param Value	Two-axis input supplied by the controller.
-	 */
-	UFUNCTION(BlueprintCallable, Category = "Input|Actions")
-	void MoveAction(const FVector2D& Value);
-
-	/**
-	 * Supplies yaw and pitch input when twin-stick aiming is inactive.
-	 *
-	 * @param Value	Two-axis input supplied by the controller.
-	 */
-	UFUNCTION(BlueprintCallable, Category = "Input|Actions")
-	void LookAction(const FVector2D& Value);
 
 private:
 

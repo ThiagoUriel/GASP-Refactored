@@ -2,7 +2,6 @@
 #include "GASPCharacterExample.h"
 
 #include "Components/GASPActionComponent.h"
-#include "Components/GASPTraversalComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "GameFramework/GameplayCameraComponent.h"
 
@@ -92,37 +91,6 @@ void AGASPCharacterExample::CrouchAction(bool bPressed)
 	}
 }
 
-void AGASPCharacterExample::JumpAction(bool bPressed)
-{
-	if (GetMovementMode() == MovementModeTags::Ragdoll)
-	{
-		StopRagdolling();
-		return;
-	}
-
-	auto* InputState{PlayerInputState.GetMutablePtr<FGASPInputState>()};
-	if (bPressed && !IsDoingTraversal() && !GetMesh()->IsPlayingRootMotion())
-	{
-		if (const auto [bTraversalCheckFailed, bMontageSelectionFailed] = TryTraversalAction(); bTraversalCheckFailed ||
-			bMontageSelectionFailed)
-		{
-			if (GetStanceMode() != StanceTags::Standing)
-			{
-				InputState->DesiredStance = StanceTags::Standing;
-			}
-			else
-			{
-				Jump();
-				FTimerHandle TimerHandle;
-				GetWorldTimerManager().SetTimer(TimerHandle, FTimerDelegate::CreateWeakLambda(this, [this]()
-				{
-					StopJumping();
-				}), .1f, false);
-			}
-		}
-	}
-}
-
 void AGASPCharacterExample::AimAction(bool bPressed)
 {
 	auto* InputState{PlayerInputState.GetMutablePtr<FGASPInputState>()};
@@ -158,24 +126,5 @@ void AGASPCharacterExample::StrafeAction(bool bPressed)
 	else
 	{
 		InputState->DesiredRotationMode = RotationTags::OrientToMovement;
-	}
-}
-
-void AGASPCharacterExample::MoveAction(const FVector2D& Value)
-{
-	if (!IsLocallyControlled())
-	{
-		return;
-	}
-
-	AddMovementInput({Value.X, Value.Y, 0.f});
-}
-
-void AGASPCharacterExample::LookAction(const FVector2D& Value)
-{
-	if (!TwinStickMode)
-	{
-		AddControllerYawInput(Value.X);
-		AddControllerPitchInput(-1 * Value.Y);
 	}
 }

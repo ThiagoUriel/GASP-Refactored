@@ -14,6 +14,8 @@ public class GASPNBS : ModuleRules
 			"CoreUObject",
 			"CrucibleGameplay",
 			"FoundryActorFramework",
+			"FoundryInput",
+			"FoundryInputHandlers",
 			"FoundryPersistence",
 			"Engine",
 			"FoundryInteraction",
@@ -28,6 +30,7 @@ public class GASPNBS : ModuleRules
 		PrivateDependencyModuleNames.AddRange(new[]
 		{
 			"FoundryGameplayAbilities",
+			"EnhancedInput",
 			"GameplayAbilities"
 		});
 	}

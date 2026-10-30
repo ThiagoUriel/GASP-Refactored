@@ -4,11 +4,14 @@
 #include "GASPCharacterExample.h"
 #include "Interaction/GASPActionTypes.h"
 #include "Interfaces/GASPInteractionInterface.h"
+#include "Interfaces/InputSetupProviderInterface.h"
+#include "Interfaces/TraversalMovementInputInterface.h"
 #include "Types/FInteractionCoreTypes.h"
 #include "GASPFoundryPawn.generated.h"
 
 class UFoundryInteractionComponent;
 class UFoundryInteractionTargetComponent;
+class UFoundryInputSetupDataAsset;
 class USphereComponent;
 
 /**
@@ -19,7 +22,7 @@ class USphereComponent;
  * Foundry execution ends, including prepared actions that never reach Commit.
  */
 UCLASS(Blueprintable)
-class GASPNBS_API AGASPFoundryPawn : public AGASPCharacterExample, public IGASPInteractionInterface
+class GASPNBS_API AGASPFoundryPawn : public AGASPCharacterExample, public IGASPInteractionInterface, public ITraversalMovementInputInterface, public IInputSetupProviderInterface
 {
 
 	GENERATED_BODY()
@@ -45,6 +48,33 @@ public:
 	virtual FPoseSearchBlueprintResult GetInteractionResult_Implementation() const override;
 	// -- End GASPInteractionInterface implementation
 
+	// -- Begin TraversalMovementInputInterface implementation
+	virtual bool TryTraversalJumpAction_Implementation(const FFoundryInputHandlerContext& Context) override;
+	// -- End TraversalMovementInputInterface implementation
+
+	// -- Begin InputSetupProviderInterface implementation
+	virtual TArray<UFoundryInputSetupDataAsset*> GetInputSetups_Implementation() const override;
+	// -- End InputSetupProviderInterface implementation
+
+	/** Reports whether GASP currently uses its separate twin-stick aim direction. */
+	UFUNCTION(BlueprintPure, Category = "GASP|Input")
+	bool IsTwinStickInputEnabled() const { return TwinStickMode; }
+
+	/** Checks local ownership and movement restrictions before accepting a jump request. */
+	UFUNCTION(BlueprintPure, Category = "GASP|Input")
+	bool CanStartInputJump() const;
+
+	/**
+	 * Handles the non-traversal jump request: recover, stand, or issue a short Mover jump pulse.
+	 * The Pawn owns the reset timer so shared Input Handlers retain no player state.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "GASP|Input")
+	void StartInputJump();
+
+	/** Releases the Mover jump pulse and cancels its pending reset. */
+	UFUNCTION(BlueprintCallable, Category = "GASP|Input")
+	void StopInputJump();
+
 	/**
 	 * Provides this Pawn's authored target definitions and default GASP action Handlers.
 	 */
@@ -69,6 +99,10 @@ public:
 
 protected:
 
+	/** Setups registered by the Local Player while this Pawn is possessed. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "GASP|Input")
+	TArray<TObjectPtr<UFoundryInputSetupDataAsset>> InputSetups;
+
 	/** Allows an AI-controlled Pawn to discover interactions in addition to offering its target slots. */
 	UPROPERTY(EditDefaultsOnly, Category = "Interaction")
 	bool bScanWithoutPlayer = false;
@@ -87,15 +121,18 @@ protected:
 
 private:
 
+	/** Reset owned by this Pawn, independent of the lifetime of its Input Setup. */
+	FTimerHandle InputJumpTimer;
+
 	FGASPActionHandle InteractionActionHandle;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UFoundryInteractionTargetComponent> InteractionTargetComponent;
 
-	UPROPERTY(VisibleAnywhere, Category = "Components")
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<USphereComponent> InteractionScan;
 
-	UPROPERTY(VisibleAnywhere, Category = "Components")
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<USphereComponent> InteractionTargetCollision;
 
 	/**

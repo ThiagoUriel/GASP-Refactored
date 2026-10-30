@@ -1,3 +1,4 @@
+// Ninja Bear Studio Inc., all rights reserved.
 #include "GASPPlayerControllerExample.h"
 #include "EnhancedInputSubsystems.h"
 #include "InputMappingContext.h"
@@ -31,33 +32,44 @@ void AGASPPlayerControllerExample::OnRep_Pawn()
 	SetupInput();
 }
 
+void AGASPPlayerControllerExample::OnUnPossess()
+{
+	Super::OnUnPossess();
+	PossessedPlayer = nullptr;
+	SetupInput();
+}
+
 void AGASPPlayerControllerExample::OnRep_Owner()
 {
 	Super::OnRep_Owner();
 
-	PossessedPlayer = Cast<AGASPCharacterExample>(GetOwner());
+	PossessedPlayer = Cast<AGASPCharacterExample>(GetPawn());
 
 	SetupInput();
 }
 
-void AGASPPlayerControllerExample::SetupInput() const
+void AGASPPlayerControllerExample::SetupInput()
 {
-	if (!IsValid(PossessedPlayer))
+	UEnhancedInputLocalPlayerSubsystem* InputSystem = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(GetLocalPlayer());
+	if (!IsValid(InputSystem))
 	{
 		return;
 	}
-	// Get the Enhanced Input Local Player Subsystem from the Local Player related to our Player Controller.
-	if (UEnhancedInputLocalPlayerSubsystem* InputSystem =
-		ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(GetLocalPlayer()))
+	UInputMappingContext* Mapping = IsValid(PossessedPlayer) ? DefaultInputMapping.LoadSynchronous() : nullptr;
+	if (IsValid(Mapping) && AppliedDefaultInputMapping == Mapping && InputSystem->HasMappingContext(Mapping))
 	{
-		// PawnClientRestart can run more than once in an Actor's lifetime, so start by clearing out any leftover
-		// mappings.
-		InputSystem->ClearAllMappings();
-
+		return;
+	}
+	if (IsValid(AppliedDefaultInputMapping))
+	{
+		InputSystem->RemoveMappingContext(AppliedDefaultInputMapping);
+		AppliedDefaultInputMapping = nullptr;
+	}
+	if (IsValid(Mapping) && !InputSystem->HasMappingContext(Mapping))
+	{
 		FModifyContextOptions Options;
 		Options.bForceImmediately = true;
-
-		// Add each mapping context, along with their priority values. Higher values outprioritize lower values.
-		InputSystem->AddMappingContext(DefaultInputMapping.LoadSynchronous(), 1, Options);
+		InputSystem->AddMappingContext(Mapping, 1, Options);
+		AppliedDefaultInputMapping = Mapping;
 	}
 }

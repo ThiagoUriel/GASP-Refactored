@@ -36,6 +36,42 @@ Ability Scan** and **GASP Interaction Ability Execute**. Lamplighter's migrated 
 `/Game/Data/Abilities/Setups/AS_GASPInteraction`. The Pawn uses this profile when it creates its ASC;
 projects supplying a PlayerState ASC must grant the same abilities through that owner's setup.
 
+## Foundry Input Handlers
+
+The integration supplies **GASP: Move**, **GASP: Look** and **GASP: Jump** under
+`GameFramework/Input/Handlers`. The sample and Lamplighter Pawn Blueprints provide
+`/GASP/GASPNBS/Input/IS_GASPLocomotion` through **Input Setup Provider Interface**. This setup owns
+the existing `IMC_Default` at priority 1 and uses the configured `IH_GASPMove`, `IH_GASPLook` and
+`IH_GASPJump` assets. Foundry registers it on possession and removes its routes and context on
+unpossession. The remaining sample actions keep their controller Blueprint bindings in that same
+context. Move, Look and Jump no longer have controller Blueprint routes or native sample action methods.
+
+| Handler | Input contract and behavior |
+| --- | --- |
+| GASP: Move | Axis2D on Triggered/Ongoing. Uses the sample's X-forward/Y-right axes and preserves magnitude. GASP applies controller yaw when consuming the input. Forward-reference and gait-scaling settings inherited from the generic handler are not used; mapping modifiers supply the dead zone. |
+| GASP: Look | Axis2D on Triggered/Ongoing. Uses Foundry's pitch/yaw blocking and optional frame-time scaling, inverts pitch to match the sample, and suppresses camera input during twin-stick aiming. Do not add another pitch inversion to the existing sample mappings. |
+| GASP: Jump | Boolean on Triggered, matching the sample's Pressed + Released action. True offers traversal first, then requests recovery, standing or a Mover jump. Normal release leaves the short pulse intact; Canceled clears it. Conventional actions can instead subscribe to the inherited Started/Completed hooks for immediate release. |
+
+The Pawn implements Foundry's **Traversal Movement Input Interface**. Its existing traversal entry
+point retains the movement-dependent trace settings and forwards execution to the Traversal Component.
+Successful traversal suppresses the ordinary jump. Ragdoll recovery and standing are handled by the
+non-traversal fallback. The Pawn owns the 0.1-second jump reset and clears it on cancellation, unpossession,
+death and EndPlay. Setup removal also releases jump intent on the current Pawn; unpossession cleans
+the previous Pawn independently.
+
+Use separate Look actions/handlers when mouse deltas and gamepad rates require different frame-time
+settings. The default handlers leave dead zones to the mappings, preserving small mapped values.
+The migrated controllers leave their optional **Default Input Mapping** empty, so Foundry owns the
+main context. The controller's fallback mapping code only removes contexts it installed itself; it
+never clears all mappings. The separately installed `IMC_UI` and its menu bindings remain in the
+controller until the UI input migration.
+
+After building the plugin, run `Scripts/MigrateFoundryInput.py` with Unreal's Python commandlet to
+apply this migration in another checkout. It backs up affected assets under `Saved/GASPInputMigration`,
+creates the configured handler Blueprints and setup, and removes only the three legacy input chains.
+Pass `-GASPInputVerifyOnly` to reopen the saved assets, compile the Blueprint families and confirm
+that the remaining bindings and original input mapping/action files are intact.
+
 ## From input to completion
 
 1. Foundry's Scan Ability discovers target slots and asks their handlers whether they are available.
