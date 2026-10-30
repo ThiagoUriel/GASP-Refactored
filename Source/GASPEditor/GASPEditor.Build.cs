@@ -23,7 +23,8 @@ public class GASPEditor : ModuleRules
 
 			PrivateDependencyModuleNames.AddRange(new[]
 			{
-				"BlueprintGraph"
+				"BlueprintGraph",
+				"UnrealEd"
 			});
 		}
 	}

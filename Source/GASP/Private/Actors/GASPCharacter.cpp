@@ -16,6 +16,7 @@
 #include "GASP.h"
 #include "Settings/GASPCharacterSettings.h"
 #include "Components/GASPOverrideModeManager.h"
+#include "Components/GASPOverlayComponent.h"
 #include "Components/GASPPhysicsControlComponent.h"
 #include "MovementSet/Modes/MovementMode_Ragdolling.h"
 #include "Tasks/CharacterTask_Ragdoll.h"
@@ -59,9 +60,10 @@ FName AGASPCharacter::MotionWarpingComponentName(TEXT("MotionWarping"));
 FName AGASPCharacter::CharacterMotionComponentName(TEXT("MoverComponent"));
 FName AGASPCharacter::NavMoverComponentName(TEXT("NavMoverComponent"));
 FName AGASPCharacter::PhysicsControlComponentName(TEXT("PhysicsControl"));
+FName AGASPCharacter::OverlayComponentName(TEXT("OverrideModeManager"));
 
 AGASPCharacter::AGASPCharacter(const FObjectInitializer& ObjectInitializer)
-	: Super(ObjectInitializer)
+	: Super(ObjectInitializer.DoNotCreateDefaultSubobject(PhysicalAnimationComponentName))
 {
 	PrimaryActorTick.bCanEverTick = true;
 
@@ -103,7 +105,7 @@ AGASPCharacter::AGASPCharacter(const FObjectInitializer& ObjectInitializer)
 	CharacterMotionComponent = CreateDefaultSubobject<UGASPMoverComponent>(CharacterMotionComponentName);
 	MotionWarpingComponent = CreateDefaultSubobject<UMotionWarpingComponent>(MotionWarpingComponentName);
 	TraversalComponent = CreateDefaultSubobject<UGASPTraversalComponent>(TEXT("TraversalComponent"));
-	OverrideModeManager = CreateDefaultSubobject<UGASPOverrideModeManager>(TEXT("OverrideModeManager"));
+	OverrideModeManager = CreateDefaultSubobject<UGASPOverlayComponent>(OverlayComponentName);
 	NavMoverComponent = CreateDefaultSubobject<UNavMoverComponent>(NavMoverComponentName);
 
 	PhysicsControlComponent = CreateDefaultSubobject<UGASPPhysicsControlComponent>(PhysicsControlComponentName);
@@ -154,7 +156,7 @@ void AGASPCharacter::BeginPlay()
 		MeshComponent->AddTickPrerequisiteActor(this);
 	}
 
-	OverlayContainerChanged.AddDynamic(this, &ThisClass::OnOverlayModeChanged);
+	OverlayContainerChanged.AddUniqueDynamic(this, &ThisClass::OnOverlayModeChanged);
 	PoseModeChanged.AddDynamic(this, &ThisClass::OnPoseModeChanged);
 	
 	MoverInputs_PreSim.OrientationIntent = GetActorForwardVector();
@@ -182,6 +184,10 @@ void AGASPCharacter::EndPlay(const EEndPlayReason::Type EndPlayReason)
 		MoverComp->GaitChanged.RemoveDynamic(this, &ThisClass::OnMovementStateChanged);
 	}
 
+	if (UGASPOverlayComponent* Overlay = GetOverlayComponent())
+	{
+		Overlay->OnOverlayChanged.RemoveDynamic(this, &ThisClass::HandleOverlayComponentChanged);
+	}
 	OverlayContainerChanged.RemoveDynamic(this, &ThisClass::OnOverlayModeChanged);
 	PoseModeChanged.RemoveDynamic(this, &ThisClass::OnPoseModeChanged);
 
@@ -211,6 +217,12 @@ void AGASPCharacter::Tick(float DeltaTime)
 void AGASPCharacter::PostInitializeComponents()
 {
 	Super::PostInitializeComponents();
+
+	if (UGASPOverlayComponent* Overlay = GetOverlayComponent())
+	{
+		Overlay->OnOverlayChanged.AddUniqueDynamic(this, &ThisClass::HandleOverlayComponentChanged);
+		Overlay->RefreshOverlay();
+	}
 
 	CharacterMotionComponent = FindComponentByClass<UGASPMoverComponent>();
 
@@ -329,7 +341,14 @@ void AGASPCharacter::SetOverlayMode(const FGameplayTagContainer NewOverlayMode)
 			Server_SetOverlayMode(NewOverlayMode);
 		}
 
-		OverlayContainerChanged.Broadcast(OldOverlayTagContainer, OverlayTagContainer);
+		if (UGASPOverlayComponent* Overlay = GetOverlayComponent())
+		{
+			Overlay->RefreshOverlay();
+		}
+		else
+		{
+			OverlayContainerChanged.Broadcast(OldOverlayTagContainer, OverlayTagContainer);
+		}
 	}
 }
 
@@ -347,6 +366,10 @@ void AGASPCharacter::SetPoseMode(const FGameplayTag NewPoseMode, const bool bFor
 			Server_SetPoseMode(NewPoseMode);
 		}
 
+		if (UGASPOverlayComponent* Overlay = GetOverlayComponent())
+		{
+			Overlay->RefreshOverlay();
+		}
 		PoseModeChanged.Broadcast(OldPoseMode, PoseMode);
 	}
 }
@@ -398,6 +421,25 @@ bool AGASPCharacter::HasFullMovementInput() const
 
 void AGASPCharacter::ProduceInput_Implementation(int32 SimTimeMs, FMoverInputCmdContext& InputCmdResult)
 {
+	if (bMovementDisabledByDeath)
+	{
+		MoverInputs_PreSim.SetMoveInput(EMoveInputType::DirectionalIntent, FVector::ZeroVector);
+		MoverInputs_PreSim.bIsJumpJustPressed = false;
+		MoverInputs_PreSim.SuggestedMovementMode = NAME_None;
+
+		// Death suppresses locomotion intent, but a running ragdoll still needs its physics input.
+		if (Mesh && IsRagdolling())
+		{
+			if (const FBodyInstance* Pelvis = Mesh->GetBodyInstance(TEXT("pelvis")))
+			{
+				MoverInputs_PreSim.RagdollTransform = Pelvis->GetUnrealWorldTransform();
+			}
+		}
+
+		InputCmdResult.InputCollection.AddDataByCopy(&MoverInputs_PreSim);
+		return;
+	}
+
 	if (!GetController())
 	{
 		if (GetLocalRole() == ENetRole::ROLE_Authority && GetRemoteRole() == ENetRole::ROLE_SimulatedProxy)
@@ -797,16 +839,9 @@ TSubclassOf<UAnimInstance> AGASPCharacter::GetLinkedAnimLayer(const UChooserTabl
 
 void AGASPCharacter::OnPoseModeChanged(const FGameplayTag OldPoseMode, const FGameplayTag NewPoseMode)
 {
-	if (OldPoseMode.IsValid())
+	if (UGASPOverlayComponent* Overlay = GetOverlayComponent())
 	{
-		OverrideModeManager->RemoveOverrideLayer(OldPoseMode);
-	}
-
-	if (const auto LinkedAnimInstance{
-		GetLinkedAnimLayer(GetSettingsChecked()->PosesTable.LoadSynchronous())
-	}; NewPoseMode.IsValid())
-	{
-		OverrideModeManager->AddOverrideLayer(NewPoseMode, LinkedAnimInstance);
+		Overlay->RefreshOverlay();
 	}
 }
 
@@ -819,33 +854,48 @@ void AGASPCharacter::OnMovementStateChanged(const FGameplayTag OldMovementState,
 void AGASPCharacter::OnOverlayModeChanged(const FGameplayTagContainer OldOverlayMode,
                                           const FGameplayTagContainer NewOverlayMode)
 {
-	for (const auto OverlayTag : OldOverlayMode)
-	{
-		if (OverlayTag.IsValid())
-		{
-			OverrideModeManager->RemoveOverrideLayer(OverlayTag);
-		}
-	}
+	// Compatibility hook: layer reconciliation is owned by the Overlay Component.
+}
 
-	if (const auto LinkedAnimInstance{GetLinkedAnimLayer(GetSettingsChecked()->OverlayTable.LoadSynchronous())})
-	{
-		for (const auto OverlayTag : NewOverlayMode)
-		{
-			if (OverlayTag.IsValid())
-			{
-				OverrideModeManager->AddOverrideLayer(OverlayTag, LinkedAnimInstance);
-			}
-		}
-	}
+UGASPOverlayComponent* AGASPCharacter::GetOverlayComponent() const
+{
+	return Cast<UGASPOverlayComponent>(OverrideModeManager);
+}
+
+FGameplayTagContainer AGASPCharacter::GetBaseOverlayMode() const
+{
+	return OverlayTagContainer;
+}
+
+FGameplayTagContainer AGASPCharacter::GetOverlayMode() const
+{
+	const UGASPOverlayComponent* Overlay = GetOverlayComponent();
+	return IsValid(Overlay) && !IsTemplate() ? Overlay->GetOverlayMode() : OverlayTagContainer;
+}
+
+void AGASPCharacter::HandleOverlayComponentChanged(FGameplayTagContainer OldTags, FGameplayTagContainer NewTags)
+{
+	OverlayContainerChanged.Broadcast(OldTags, NewTags);
 }
 
 void AGASPCharacter::OnRep_OverlayMode(const FGameplayTagContainer& OldOverlayMode)
 {
-	OverlayContainerChanged.Broadcast(OldOverlayMode, OverlayTagContainer);
+	if (UGASPOverlayComponent* Overlay = GetOverlayComponent())
+	{
+		Overlay->RefreshOverlay();
+	}
+	else
+	{
+		OverlayContainerChanged.Broadcast(OldOverlayMode, OverlayTagContainer);
+	}
 }
 
 void AGASPCharacter::OnRep_PoseMode(const FGameplayTag& OldPoseMode)
 {
+	if (UGASPOverlayComponent* Overlay = GetOverlayComponent())
+	{
+		Overlay->RefreshOverlay();
+	}
 	PoseModeChanged.Broadcast(OldPoseMode, PoseMode);
 }
 
@@ -898,7 +948,10 @@ void AGASPCharacter::OnMovementModeChanged(const FName& PreviousMovementModeName
 	{
 		if (RagdollTask)
 		{
-			TryPlayGetUpMontage();
+			if (!bMovementDisabledByDeath)
+			{
+				TryPlayGetUpMontage();
+			}
 
 			RagdollTask->EndTask();
 			RagdollTask = nullptr;
@@ -910,7 +963,7 @@ void AGASPCharacter::OnMovementModeChanged(const FName& PreviousMovementModeName
 
 UGameplayTasksComponent* AGASPCharacter::GetGameplayTasksComponent(const UGameplayTask& Task) const
 {
-	return FindComponentByClass<UGameplayTasksComponent>();
+	return GetPawnGameplayTasksComponent();
 }
 
 AActor* AGASPCharacter::GetGameplayTaskOwner(const UGameplayTask* Task) const
@@ -931,4 +984,23 @@ void AGASPCharacter::OnGameplayTaskActivated(UGameplayTask& Task)
 void AGASPCharacter::OnGameplayTaskDeactivated(UGameplayTask& Task)
 {
 	IGameplayTaskOwnerInterface::OnGameplayTaskDeactivated(Task);
+}
+
+void AGASPCharacter::HandleDeathStarted()
+{
+	Super::HandleDeathStarted();
+	bMovementDisabledByDeath = true;
+	ConsumeMovementInputVector();
+	bJustPressedJump = false;
+
+	if (IsValid(CapsuleComponent))
+	{
+		CapsuleComponent->SetCollisionResponseToChannel(ECC_Pawn, ECR_Ignore);
+		CapsuleComponent->SetCollisionResponseToChannel(ECC_Camera, ECR_Ignore);
+	}
+
+	if (IsValid(CharacterMotionComponent) && !IsRagdolling())
+	{
+		CharacterMotionComponent->QueueNextMode(UNullMovementMode::NullModeName);
+	}
 }

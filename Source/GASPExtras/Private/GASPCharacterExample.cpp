@@ -1,41 +1,54 @@
+// Ninja Bear Studio Inc., all rights reserved.
 #include "GASPCharacterExample.h"
 
-#include "Components/GASPCharacterInteractionComponent.h"
+#include "Components/GASPActionComponent.h"
 #include "Components/GASPTraversalComponent.h"
+#include "Components/SkeletalMeshComponent.h"
 #include "GameFramework/GameplayCameraComponent.h"
+
+const FName AGASPCharacterExample::ActionComponentName = TEXT("CharacterInteractionComponent");
 
 AGASPCharacterExample::AGASPCharacterExample(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
 	GameplayCamera = CreateDefaultSubobject<UGameplayCameraComponent>(TEXT("GameplayCamera"));
 
-	InteractionComponent = CreateDefaultSubobject<UGASPCharacterInteractionComponent>(
-		TEXT("CharacterInteractionComponent"));
+	ActionComponent = CreateDefaultSubobject<UGASPActionComponent>(ActionComponentName);
 	
 	if (GetMesh())
 	{
-		GameplayCamera->SetupAttachment(GetMesh(), FName{TEXT("root")});
+		GameplayCamera->SetupAttachment(GetMesh());
+	}
+}
+
+void AGASPCharacterExample::PostInitializeComponents()
+{
+	Super::PostInitializeComponents();
+	if (IsValid(GameplayCamera) && IsValid(GetMesh()) && IsValid(GetMesh()->GetSkinnedAsset()))
+	{
+		// Blueprint mesh defaults are available now; raw native Pawns may still have no skeleton.
+		GameplayCamera->AttachToComponent(GetMesh(), FAttachmentTransformRules::KeepRelativeTransform, TEXT("root"));
 	}
 }
 
 void AGASPCharacterExample::PossessedBy(AController* NewController)
 {
-	if (auto* PC = Cast<APlayerController>(NewController))
-	{
-		GameplayCamera->ActivateCameraForPlayerController(PC);
-	}
-
 	Super::PossessedBy(NewController);
+	APlayerController* PlayerController = Cast<APlayerController>(NewController);
+	if (IsValid(PlayerController) && PlayerController->IsLocalController())
+	{
+		GameplayCamera->ActivateCameraForPlayerController(PlayerController);
+	}
 }
 
 void AGASPCharacterExample::OnRep_Controller()
 {
-	if (auto* PC = Cast<APlayerController>(GetController()))
-	{
-		GameplayCamera->ActivateCameraForPlayerController(PC);
-	}
-
 	Super::OnRep_Controller();
+	APlayerController* PlayerController = Cast<APlayerController>(GetController());
+	if (IsValid(PlayerController) && PlayerController->IsLocalController())
+	{
+		GameplayCamera->ActivateCameraForPlayerController(PlayerController);
+	}
 }
 
 void AGASPCharacterExample::SprintAction(bool bPressed)

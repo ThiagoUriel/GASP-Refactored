@@ -1,4 +1,4 @@
-﻿using UnrealBuildTool;
+using UnrealBuildTool;
 
 public class GASPExtras : ModuleRules
 {
@@ -11,6 +11,9 @@ public class GASPExtras : ModuleRules
 			{
 				"Core",
 				"GASP",
+				"CrucibleGameplay",
+				"FoundryActorFramework",
+				"FoundryPersistence",
 				"InputCore",
 				"EnhancedInput",
 				"Mover",

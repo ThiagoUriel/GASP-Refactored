@@ -118,7 +118,10 @@ void AGASPCharacter::StopRagdollingImplementation()
 
 	FHitResult Floor;
 	const bool bHasFloor = GetMoverComponent()->TryGetFloorCheckHitResult(Floor) && Floor.bBlockingHit;
-	const FName TargetModeName = bHasFloor ? DefaultModeNames::Walking : DefaultModeNames::Falling;
+	const FName TargetModeName = bMovementDisabledByDeath
+		? UNullMovementMode::NullModeName
+		: (bHasFloor ? DefaultModeNames::Walking : DefaultModeNames::Falling);
+
 	GetMoverComponent()->QueueNextMode(TargetModeName);
 }
 

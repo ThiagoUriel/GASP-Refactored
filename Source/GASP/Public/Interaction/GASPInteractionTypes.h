@@ -1,3 +1,4 @@
+// Ninja Bear Studio Inc., all rights reserved.
 #pragma once
 
 #include "PoseSearch/PoseSearchResult.h"
@@ -9,7 +10,7 @@ class UAnimMontage;
 class UPoseSearchDatabase;
 class UPoseSearchInteractionAsset;
 
-/** Chooser input row. Kept as the table contract; only InteractionType changed from FName to a tag. */
+/** Chooser input retaining the sample action names and movement speed. */
 USTRUCT(BlueprintType)
 struct GASP_API FCharacterInteractionInput
 {
@@ -36,16 +37,11 @@ struct GASP_API FCharacterInteractionOutput
 };
 
 /**
- * One participant's share of a running interaction.
+ * Describes one participant and its selected animation role.
  *
- * Result travels whole, because Blueprint reads it back out of the character's task state through
- * IGASPInteractionInterface::GetInteractionResult and expects a complete FPoseSearchBlueprintResult.
- *
- * Actor is carried alongside it because it cannot be recovered from Result on a remote machine:
- * UPoseSearchLibrary::GetActor resolves the participant through Result.AnimContexts, which holds
- * anim instances. Those are created at runtime by USkeletalMeshComponent::InitAnim with generated
- * names, so FNetGUIDCache::SupportsObject rejects them and they arrive null. The receiving machine
- * rebuilds AnimContexts locally from Actor instead.
+ * Action Components share the selected result with observers, omitting its animation instances.
+ * Each observer uses Actor to rebuild its local contexts before publishing the role to animation
+ * Blueprints and motion-warping notifies. Read that local result through GetInteractionResult.
  */
 USTRUCT(BlueprintType)
 struct GASP_API FGASPInteractionRep

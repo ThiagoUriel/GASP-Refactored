@@ -1,3 +1,4 @@
+// Ninja Bear Studio Inc., all rights reserved.
 #pragma once
 
 #include "PoseSearch/PoseSearchResult.h"
@@ -13,18 +14,29 @@ class UGASPInteractionInterface : public UInterface
 };
 
 /**
- * Lets any actor take part in a synchronized interaction, not just AGASPCharacter.
+ * Gives animation Blueprints and notifies access to a participant's local synchronized action.
+ *
+ * Implementations provide their current animation instance and forward the role result from their
+ * Action Component. Foundry owns target discovery; this interface is only the animation bridge.
  */
 class GASP_API IGASPInteractionInterface
 {
 	GENERATED_BODY()
 
 public:
-	// Null for static interactables that do not participate in motion matching.
+	/**
+	 * Provides the animation instance used for this participant's role selection and playback.
+	 *
+	 * @return	Current local instance, or null while an animated participant is unavailable.
+	 */
 	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "Interaction")
 	UAnimInstance* GetInteractionAnimContext() const;
 
-	/** Pose search result of the running interaction; read by the anim graph and the warping notify. */
+	/**
+	 * Provides the local role consumed by the animation graph and motion-warping notifies.
+	 *
+	 * @return	Current role result, or an empty result when no role is playing.
+	 */
 	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "Interaction")
 	FPoseSearchBlueprintResult GetInteractionResult() const;
 };

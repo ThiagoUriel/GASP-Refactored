@@ -12,7 +12,8 @@ public class GASP : ModuleRules
 
 		PublicDependencyModuleNames.AddRange(new string[]
 		{
-			"Core", "CoreUObject", "Engine",
+			"Core", "CoreUObject", "Engine", "CrucibleGameplay",
+			"FoundryActorFramework", "FoundryPersistence",
 			"NetCore", "Mover", "NetworkPrediction",
 			"GameplayTags", "GameplayTasks",
 			"AIModule",

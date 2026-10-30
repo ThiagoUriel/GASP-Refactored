@@ -105,6 +105,11 @@ const FMoverDefaultSyncState* StartingSyncState = StartState.SyncState.SyncState
 		}
 		break;
 	case EMoveInputType::None:
+		{
+			DesiredVelocity = FVector::ZeroVector;
+			OutProposedMove.DirectionIntent = FVector::ZeroVector;
+		}
+		break;
 	case EMoveInputType::Invalid:
 	default:
 		{

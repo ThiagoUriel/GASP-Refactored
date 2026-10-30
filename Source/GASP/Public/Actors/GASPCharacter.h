@@ -1,6 +1,8 @@
 #pragma once
 
 #include "GameplayTagContainer.h"
+#include "GameFramework/CruciblePawn.h"
+#include "Components/GASPOverrideModeManager.h"
 #include "Interfaces/GASPTargetedActor.h"
 #include "MoverSimulationTypes.h"
 #include "Tasks/TaskDataTypes.h"
@@ -11,21 +13,27 @@
 #include "GameplayTaskOwnerInterface.h"
 #include "GASPCharacter.generated.h"
 
+class UAnimInstance;
+class UCapsuleComponent;
 class UCharacterTask_Ragdoll;
-struct FMontageBlendSettings;
-enum class EStanceMode : uint8;
-class UNavMoverComponent;
-class UGASPMoverComponent;
+class UChooserTable;
 class UGASPCharacterSettings;
+class UGASPMoverComponent;
+class UGASPOverlayComponent;
+class UGASPOverrideModeManager;
+class UGASPPhysicsControlComponent;
+class UGASPTraversalComponent;
+class UMotionWarpingComponent;
+class UNavMoverComponent;
+class USkeletalMeshComponent;
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnStateChanged, FGameplayTag, OldGameplayTag, FGameplayTag,
-                                             NewGameplayTag);
+struct FMontageBlendSettings;
+struct FTraversalCheckInputs;
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnGameplayTagContainerChanged, FGameplayTagContainer,
-                                             OldGameplayTagContainer, FGameplayTagContainer, NewGameplayTagContainer);
+enum class EStanceMode : uint8;
 
 UCLASS()
-class GASP_API AGASPCharacter : public APawn, public IMoverInputProducerInterface, public IGASPTargetedActor,
+class GASP_API AGASPCharacter : public ACruciblePawn, public IMoverInputProducerInterface, public IGASPTargetedActor,
                                 public IGameplayTagAssetInterface, public IGameplayTaskOwnerInterface
 {
 	GENERATED_BODY()
@@ -33,13 +41,13 @@ class GASP_API AGASPCharacter : public APawn, public IMoverInputProducerInterfac
 	/** The main skeletal mesh associated with this Character (optional sub-object). */
 	UPROPERTY(Category=Character, VisibleAnywhere, BlueprintReadOnly, meta=(AllowPrivateAccess = "true"))
 	TObjectPtr<USkeletalMeshComponent> Mesh;
-	/** The CapsuleComponent being used for movement collision (by CharacterMovement). Always treated as being vertically aligned in simple collision check functions. */
+	/** Vertical capsule used by Mover for movement collision. */
 	UPROPERTY(Category=Character, VisibleAnywhere, BlueprintReadOnly, meta=(AllowPrivateAccess = "true"))
-	TObjectPtr<class UCapsuleComponent> CapsuleComponent;
+	TObjectPtr<UCapsuleComponent> CapsuleComponent;
 	UPROPERTY(Category=Character, VisibleAnywhere, BlueprintReadOnly, meta=(AllowPrivateAccess = "true"))
-	TObjectPtr<class UGASPPhysicsControlComponent> PhysicsControlComponent;
+	TObjectPtr<UGASPPhysicsControlComponent> PhysicsControlComponent;
 	UPROPERTY(Category=Character, VisibleAnywhere, BlueprintReadOnly, meta=(AllowPrivateAccess = "true"))
-	TObjectPtr<class UGASPOverrideModeManager> OverrideModeManager;
+	TObjectPtr<UGASPOverrideModeManager> OverrideModeManager;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintGetter=GetPoseMode, ReplicatedUsing=OnRep_PoseMode, Transient)
 	FGameplayTag PoseMode{PoseModeTags::Default};
@@ -51,6 +59,10 @@ class GASP_API AGASPCharacter : public APawn, public IMoverInputProducerInterfac
 	FGameplayTagContainer OverlayTagContainer{};
 
 protected:
+
+	/** Suppresses locomotion input after the Crucible death flow begins. */
+	bool bMovementDisabledByDeath = false;
+
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Settings")
 	TObjectPtr<UGASPCharacterSettings> Settings;
 
@@ -58,10 +70,10 @@ protected:
 	float DebugAngle{0.f};
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Components")
-	TObjectPtr<class UMotionWarpingComponent> MotionWarpingComponent{};
+	TObjectPtr<UMotionWarpingComponent> MotionWarpingComponent{};
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Components")
-	TObjectPtr<class UGASPTraversalComponent> TraversalComponent{};
+	TObjectPtr<UGASPTraversalComponent> TraversalComponent{};
 
 	UPROPERTY(BlueprintReadOnly)
 	FGASPMoverInputs MoverInputs_PostSim{};
@@ -89,7 +101,7 @@ protected:
 	FRotator LastControlRotation{FRotator::ZeroRotator};
 
 	UFUNCTION(BlueprintPure, Category = "Traversal")
-	struct FTraversalCheckInputs GetTraversalCheckInputs() const;
+	FTraversalCheckInputs GetTraversalCheckInputs() const;
 
 	UFUNCTION(BlueprintPure, Category = "Input")
 	bool HasFullMovementInput() const;
@@ -107,6 +119,10 @@ protected:
 	virtual void RefreshControlRotationRate(const float DeltaTime);
 	virtual void RefreshTwinStickMode();
 	virtual void RefreshMoverState();
+
+	// -- Begin CruciblePawn implementation
+	virtual void HandleDeathStarted() override;
+	// -- End CruciblePawn implementation
 
 	virtual FGameplayTagContainer BP_GetOwnedGameplayTags() const override;
 
@@ -138,12 +154,12 @@ public:
 	virtual FGameplayTag GetAllowedGait();
 
 	/** Returns Mesh subobject **/
-	inline class USkeletalMeshComponent* GetMesh() const { return Mesh; }
+	inline USkeletalMeshComponent* GetMesh() const { return Mesh; }
 
 	/** Name of the MeshComponent. Use this name if you want to prevent creation of the component (with ObjectInitializer.DoNotCreateDefaultSubobject). */
 	static FName MeshComponentName;
 
-	inline class UCapsuleComponent* GetCapsuleComponent() const { return CapsuleComponent; }
+	inline UCapsuleComponent* GetCapsuleComponent() const { return CapsuleComponent; }
 	static FName CapsuleComponentName;
 
 	UFUNCTION(BlueprintPure, Category = Mover)
@@ -162,6 +178,19 @@ public:
 	static FName CharacterMotionComponentName;
 	static FName NavMoverComponentName;
 	static FName PhysicsControlComponentName;
+	/** Stable subobject name used to select an Overlay Component subclass during construction. */
+	static FName OverlayComponentName;
+
+	/**
+	 * Provides the component that combines overlay contributions and resolves their layers.
+	 */
+	UFUNCTION(BlueprintPure, Category = "GASP|Overlay")
+	UGASPOverlayComponent* GetOverlayComponent() const;
+
+	/**
+	 * Provides authored and replicated manual overlays, excluding local source contributions.
+	 */
+	FGameplayTagContainer GetBaseOverlayMode() const;
 
 	//~ Begin INavAgentInterface Interface
 	virtual FVector GetNavAgentLocation() const override;
@@ -227,7 +256,13 @@ public:
 	UFUNCTION()
 	virtual void OnMovementStateChanged(const FGameplayTag OldMovementState, const FGameplayTag NewMovementState);
 
-	TSubclassOf<UAnimInstance> GetLinkedAnimLayer(const class UChooserTable* DataTable) const;
+	/**
+	 * Resolves an animation layer with this character as the Chooser context.
+	 *
+	 * @param DataTable	Chooser to evaluate; null tables produce no layer.
+	 * @return			Layer selected from a linked animation set, or null when no set is selected.
+	 */
+	virtual TSubclassOf<UAnimInstance> GetLinkedAnimLayer(const UChooserTable* DataTable) const;
 
 	explicit AGASPCharacter(const FObjectInitializer& ObjectInitializer);
 	AGASPCharacter() = default;
@@ -262,11 +297,11 @@ public:
 	UFUNCTION(BlueprintCallable, Category=Character)
 	virtual void StopJumping();
 
+	/**
+	 * Provides the complete manual and contributed overlay tags used by animation Choosers.
+	 */
 	UFUNCTION(BlueprintPure)
-	FGameplayTagContainer GetOverlayMode() const
-	{
-		return OverlayTagContainer;
-	}
+	FGameplayTagContainer GetOverlayMode() const;
 
 	UFUNCTION(BlueprintPure)
 	FGameplayTag GetPoseMode() const
@@ -298,7 +333,19 @@ public:
 	UPROPERTY(BlueprintReadOnly, ReplicatedUsing=OnRep_TaskStates)
 	FInstancedStructCollection TaskStates{};
 
+protected:
+
+	/**
+	 * Forwards effective overlay changes to character listeners after component reconciliation.
+	 *
+	 * @param OldTags	Previously effective overlay tags.
+	 * @param NewTags	Current combined manual and contributed tags.
+	 */
+	UFUNCTION()
+	virtual void HandleOverlayComponentChanged(FGameplayTagContainer OldTags, FGameplayTagContainer NewTags);
+
 private:
+
 	UFUNCTION()
 	virtual void OnRep_OverlayMode(const FGameplayTagContainer& OldOverlayMode);
 	UFUNCTION()
